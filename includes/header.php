@@ -1,10 +1,12 @@
 <?php
 // Define a URL base do projeto
-if($ambienteIsRemoto){
-    $base_url = '/preditix';
-}else{
-    $base_url = '/preditix/preditix';
-}
+// if($ambienteIsRemoto){
+//     $base_url = '/preditix';
+// }else{
+//     $base_url = '/preditix/preditix';
+// }
+
+$base_url = '/preditix';
 
 $nivel_acesso = $_SESSION['usuario_nivel_acesso'] ?? '';
 $usuario_gestor = in_array($nivel_acesso, ['gestor', 'admin'], true);
