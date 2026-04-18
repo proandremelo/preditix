@@ -8,6 +8,7 @@
 
 $base_url = '/preditix';
 
+
 $nivel_acesso = $_SESSION['usuario_nivel_acesso'] ?? '';
 $usuario_gestor = in_array($nivel_acesso, ['gestor', 'admin'], true);
 ?>
