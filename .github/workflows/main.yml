@@ -17,7 +17,7 @@ jobs:
         server: ftp.auto.dev.br
         username: andre@auto.dev.br
         password: ${{ secrets.FTP_PASSWORD }}
-        server-dir: public_html/desenv/
+        server-dir: desenv/
         # server: ${{ secrets.FTP_HOST }}
         # username: ${{ secrets.FTP_USERNAME }}
         # password: ${{ secrets.FTP_PASSWORD }}
