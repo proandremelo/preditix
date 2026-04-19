@@ -31,3 +31,4 @@ jobs:
           log-level: verbose
           # dry-run: true   # descomente só para teste: lista o que faria SEM enviar
           # dangerous-clean-slate: true  # cuidado: apaga tudo em server-dir antes
+          # verbose: true  # mostra mais detalhes
