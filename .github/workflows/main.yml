@@ -1,24 +1,34 @@
-on: 
+on:
   push:
     branches:
       - main
-name: 🚀 Deploy website on push
+
+name: Deploy website on push
+
 jobs:
   web-deploy:
-    name: 🎉 Deploy
+    name: Deploy
     runs-on: ubuntu-latest
     steps:
-    - name: 🚚 Get latest code
-      uses: actions/checkout@v4
-    
-    - name: 📂 Sync files
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.6
-      with:
-        server: ftp.auto.dev.br
-        username: andre@auto.dev.br
-        password: ${{ secrets.FTP_PASSWORD }}
-        server-dir: desenv/
-        # server: ${{ secrets.FTP_HOST }}
-        # username: ${{ secrets.FTP_USERNAME }}
-        # password: ${{ secrets.FTP_PASSWORD }}
-        # server-dir: public_html/${{ secrets.CLIENTE }}/
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Ajuda a ver no log se há arquivos para enviar (repo não vazio)
+      - name: Listar conteúdo que será publicado
+        run: |
+          echo "Diretório atual:" && pwd
+          echo "Arquivos na raiz:" && ls -la
+          echo "Contagem (aprox.):" && find . -type f | head -50
+          echo "Total de arquivos:" && find . -type f | wc -l
+
+      - name: Sync files via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          # Valor do secret: caminho SEM barra final (ex.: desenv ou public_html/desenv)
+          server-dir: ${{ secrets.CLIENTE }}/
+          log-level: verbose
+          # dry-run: true   # descomente só para teste: lista o que faria SEM enviar
+          # dangerous-clean-slate: true  # cuidado: apaga tudo em server-dir antes
