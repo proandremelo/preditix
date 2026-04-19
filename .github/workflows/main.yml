@@ -13,7 +13,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Ajuda a ver no log se há arquivos para enviar (repo não vazio)
+
       - name: Listar conteúdo que será publicado
         run: |
           echo "Diretório atual:" && pwd
