@@ -27,7 +27,7 @@ jobs:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: home2/autode51/auto.dev.br/andre/
+          server-dir: home2/autode51/auto.dev.br/andre/desenv/
           log-level: verbose
           # dry-run: true   # descomente só para teste: lista o que faria SEM enviar
           # dangerous-clean-slate: true  # cuidado: apaga tudo em server-dir antes
