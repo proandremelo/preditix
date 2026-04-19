@@ -27,7 +27,6 @@ jobs:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          # Valor do secret: caminho SEM barra final (ex.: desenv ou public_html/desenv)
           server-dir: ${{ secrets.CLIENTE }}/
           log-level: verbose
           # dry-run: true   # descomente só para teste: lista o que faria SEM enviar
