@@ -27,7 +27,7 @@ jobs:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: desenv/
+          server-dir: .
           log-level: verbose
           # dry-run: true   # descomente só para teste: lista o que faria SEM enviar
           # dangerous-clean-slate: true  # cuidado: apaga tudo em server-dir antes
