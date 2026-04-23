@@ -1,0 +1,189 @@
+/* Complemento ao assets/css/style.css do sistema legado (Bootstrap 5). */
+
+#viewApp .container-fluid.px-4 {
+    padding-bottom: 2rem;
+}
+
+#dashboardMount .card {
+    transition: transform 0.2s;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+#dashboardMount .card:hover {
+    transform: translateY(-2px);
+}
+
+#dashboardMount .cursor-pointer {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#dashboardMount .cursor-pointer:hover {
+    transform: scale(1.02);
+}
+
+#navbarMain .nav-link.active,
+#navbarMain .dropdown-item.active {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.table-cell-actions {
+    white-space: nowrap;
+    width: 120px;
+}
+
+/* Espelho de includes/header.php — tabelas de ativos / OS */
+#spaViewCrud .table-ativos {
+    width: 100%;
+    table-layout: fixed;
+    margin-bottom: 0;
+}
+#spaViewCrud .table-ativos th,
+#spaViewCrud .table-ativos td {
+    padding: 0.5rem;
+    vertical-align: middle;
+}
+#spaViewCrud .table-cell-text {
+    max-width: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#spaViewCrud .table-cell-actions {
+    white-space: nowrap;
+    width: 120px;
+    padding-right: 0;
+}
+#spaViewCrud .table-cell-status {
+    width: 100px;
+    text-align: center;
+}
+#spaViewCrud .table-cell-number {
+    width: 120px;
+    text-align: right;
+}
+#spaViewCrud .col-tag {
+    width: 12%;
+}
+#spaViewCrud .col-placa {
+    width: 10%;
+}
+#spaViewCrud .col-nome {
+    width: 18%;
+}
+#spaViewCrud .col-fabricante {
+    width: 18%;
+}
+#spaViewCrud .col-modelo {
+    width: 15%;
+}
+#spaViewCrud .col-ano {
+    width: 9%;
+}
+#spaViewCrud .col-inscricao {
+    width: 10%;
+}
+#spaViewCrud .col-tipo {
+    width: 12%;
+}
+#spaViewCrud .col-localizacao {
+    width: 18%;
+}
+#spaViewCrud .col-armador {
+    width: 18%;
+}
+#spaViewCrud .col-numero {
+    width: 10%;
+}
+#spaViewCrud .col-equipamento {
+    width: 22%;
+}
+#spaViewCrud .col-data {
+    width: 14%;
+}
+#spaViewCrud .col-usuario {
+    width: 14%;
+}
+#spaViewCrud .btn-group {
+    gap: 0.25rem;
+}
+#spaViewCrud .btn-group .btn {
+    padding: 0.25rem 0.5rem;
+}
+#spaViewCrud .btn-group .btn i {
+    font-size: 0.875rem;
+}
+#spaViewCrud .table-responsive {
+    overflow-x: auto;
+}
+
+/*
+ * Cores das ações nas tabelas: no BS5, .btn-info é ciano com texto escuro;
+ * no legado o “olho” é azul com ícone branco. Ajuste + stubs desabilitados sem cinza.
+ */
+#spaViewCrud .table-cell-actions .btn-group .btn.btn-info {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+}
+#spaViewCrud .table-cell-actions .btn-group .btn.btn-info:hover:not(:disabled) {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+    color: #fff;
+}
+#spaViewCrud .table-cell-actions .btn-group .btn.btn-warning {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+}
+#spaViewCrud .table-cell-actions .btn-group .btn.btn-warning:hover:not(:disabled) {
+    background-color: #ffca2c;
+    border-color: #ffc720;
+    color: #212529;
+}
+#spaViewCrud .table-cell-actions .btn-group .btn.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
+}
+#spaViewCrud .table-cell-actions .btn-group .btn.btn-danger:hover:not(:disabled) {
+    background-color: #bb2d3b;
+    border-color: #b02a37;
+    color: #fff;
+}
+#spaViewCrud .table-cell-actions .btn-group .btn.btn-success {
+    background-color: #198754;
+    border-color: #198754;
+    color: #fff;
+}
+#spaViewCrud .table-cell-actions .btn-group .btn.btn-success:hover:not(:disabled) {
+    background-color: #157347;
+    border-color: #146c43;
+    color: #fff;
+}
+#spaViewCrud .table-cell-actions .btn-group .btn:disabled {
+    opacity: 1;
+    pointer-events: none;
+}
+#spaViewCrud .table-cell-actions .btn-group .btn.btn-info:disabled {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+}
+#spaViewCrud .table-cell-actions .btn-group .btn.btn-warning:disabled {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+}
+#spaViewCrud .table-cell-actions .btn-group .btn.btn-danger:disabled {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
+}
+#spaViewCrud .table-cell-actions .btn-group .btn.btn-success:disabled {
+    background-color: #198754;
+    border-color: #198754;
+    color: #fff;
+}
