@@ -3,17 +3,28 @@ declare(strict_types=1);
 
 namespace AppDesacoplado\Repositories;
 
+use AppDesacoplado\Infrastructure\Database;
+
 /**
  * Consultas de OS usadas apenas pela API desacoplada (não altera classes/).
  */
 final class OrdemServicoReadRepository
 {
-    /** @var \Database */
-    private $db;
+    private Database $db;
 
     public function __construct()
     {
-        $this->db = new \Database();
+        $this->db = new Database();
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public function listarItens(int $ordemServicoId): array
+    {
+        $sql = 'SELECT * FROM itens_ordem_servico 
+                WHERE ordem_servico_id = :ordem_servico_id
+                ORDER BY id';
+
+        return $this->db->query($sql, [':ordem_servico_id' => $ordemServicoId]);
     }
 
     /**

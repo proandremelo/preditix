@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace AppDesacoplado\Auth;
 
+use AppDesacoplado\Infrastructure\Database;
+
 /**
  * Sessão para esta API: mesmas chaves de $_SESSION que includes/auth.php.
  */
@@ -10,7 +12,7 @@ final class AuthSession
 {
     public static function login(string $email, string $senha): bool
     {
-        $db = new \Database();
+        $db = new Database();
 
         $sql = 'SELECT id, nome, email, senha, nivel_acesso FROM usuarios WHERE email = :email';
         $result = $db->query($sql, [':email' => $email]);
@@ -58,6 +60,28 @@ final class AuthSession
         echo json_encode([
             'error' => 'unauthorized',
             'message' => 'Faça login para continuar.',
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    public static function isGestor(): bool
+    {
+        return self::getNivelAcesso() === 'gestor';
+    }
+
+    public static function requireGestorJson(): void
+    {
+        self::requireLoginJson();
+        if (self::isGestor()) {
+            return;
+        }
+        if (!headers_sent()) {
+            http_response_code(403);
+            header('Content-Type: application/json; charset=utf-8');
+        }
+        echo json_encode([
+            'error' => 'forbidden',
+            'message' => 'Apenas gestores podem realizar esta ação.',
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }

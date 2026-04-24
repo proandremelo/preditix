@@ -285,6 +285,371 @@
         </div>
     </div>
 
+    <!-- Usuário (gestor): ver / criar / editar -->
+    <div class="modal fade" id="modalUsuarioVer" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalUsuarioVerTitle">Usuário</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body" id="modalUsuarioVerBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-warning" id="modalUsuarioVerEditar"><i class="bi bi-pencil me-1"></i> Editar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="modalUsuarioForm" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalUsuarioFormTitle">Usuário</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formUsuario">
+                        <input type="hidden" id="formUsuarioEditId" value="">
+                        <div class="mb-3">
+                            <label for="formUsuarioNome" class="form-label">Nome</label>
+                            <input type="text" class="form-control" id="formUsuarioNome" required maxlength="255">
+                        </div>
+                        <div class="mb-3">
+                            <label for="formUsuarioEmail" class="form-label">E-mail</label>
+                            <input type="email" class="form-control" id="formUsuarioEmail" required maxlength="255">
+                        </div>
+                        <div class="mb-3">
+                            <label for="formUsuarioSenha" class="form-label">Senha</label>
+                            <input type="password" class="form-control" id="formUsuarioSenha" maxlength="255" autocomplete="new-password">
+                            <div class="form-text" id="formUsuarioSenhaHint">Obrigatória no cadastro; deixe em branco na edição para manter.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="formUsuarioNivel" class="form-label">Nível</label>
+                            <select class="form-select" id="formUsuarioNivel" required>
+                                <option value="gestor">Gestor</option>
+                                <option value="responsavel">Responsável</option>
+                            </select>
+                        </div>
+                        <div id="formUsuarioError" class="alert alert-danger py-2 d-none" role="alert"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="formUsuarioSubmit"><i class="bi bi-check-lg me-1"></i> Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Almoxarifado (gestor) -->
+    <div class="modal fade" id="modalAlmoxVer" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalAlmoxVerTitle">Item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body" id="modalAlmoxVerBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-warning" id="modalAlmoxVerEditar"><i class="bi bi-pencil me-1"></i> Editar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="modalAlmoxForm" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalAlmoxFormTitle">Item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAlmox">
+                        <input type="hidden" id="formAlmoxEditId" value="">
+                        <div class="mb-3">
+                            <label for="formAlmoxCodigo" class="form-label">Código de barras</label>
+                            <input type="text" class="form-control" id="formAlmoxCodigo" required maxlength="100" pattern="[A-Za-z0-9]+" title="Apenas letras e números">
+                        </div>
+                        <div class="mb-3">
+                            <label for="formAlmoxNome" class="form-label">Nome</label>
+                            <input type="text" class="form-control" id="formAlmoxNome" required maxlength="255">
+                        </div>
+                        <div class="mb-3">
+                            <label for="formAlmoxQtd" class="form-label">Quantidade</label>
+                            <input type="number" class="form-control" id="formAlmoxQtd" min="0" step="1" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="formAlmoxValor" class="form-label">Valor unitário</label>
+                            <input type="number" class="form-control" id="formAlmoxValor" min="0" step="0.01" required>
+                        </div>
+                        <div id="formAlmoxError" class="alert alert-danger py-2 d-none" role="alert"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="formAlmoxSubmit"><i class="bi bi-check-lg me-1"></i> Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Embarcação -->
+    <div class="modal fade" id="modalEmbarcacaoVer" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalEmbarcacaoVerTitle">Embarcação</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body" id="modalEmbarcacaoVerBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-warning" id="modalEmbarcacaoVerEditar"><i class="bi bi-pencil me-1"></i> Editar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="modalEmbarcacaoForm" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalEmbarcacaoFormTitle">Embarcação</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEmbarcacao">
+                        <input type="hidden" id="formEmbarcacaoEditId" value="">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="formEmbTipo" class="form-label">Tipo</label>
+                                <select class="form-select" id="formEmbTipo" required>
+                                    <option value="balsa_simples">Balsa simples</option>
+                                    <option value="balsa_motorizada">Balsa motorizada</option>
+                                    <option value="empurrador">Empurrador</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3" id="formEmbSubtipoWrap">
+                                <label for="formEmbSubtipo" class="form-label">Subtipo da balsa</label>
+                                <select class="form-select" id="formEmbSubtipo">
+                                    <option value="">—</option>
+                                    <option value="docagem">Docagem</option>
+                                    <option value="comboio">Comboio</option>
+                                    <option value="outros">Outros</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="formEmbTag" class="form-label">Tag</label>
+                                <input type="text" class="form-control" id="formEmbTag" required maxlength="64">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="formEmbInscricao" class="form-label">Inscrição</label>
+                                <input type="text" class="form-control" id="formEmbInscricao" required maxlength="64">
+                            </div>
+                            <div class="col-md-12 mb-3">
+                                <label for="formEmbNome" class="form-label">Nome</label>
+                                <input type="text" class="form-control" id="formEmbNome" required maxlength="255">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="formEmbArmador" class="form-label">Armador</label>
+                                <input type="text" class="form-control" id="formEmbArmador" maxlength="255">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="formEmbAno" class="form-label">Ano fabricação</label>
+                                <input type="number" class="form-control" id="formEmbAno" min="1900" max="2100">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="formEmbCap" class="form-label">Capacidade (m³)</label>
+                                <input type="number" class="form-control" id="formEmbCap" min="0" step="0.01">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="formEmbStatus" class="form-label">Status</label>
+                                <select class="form-select" id="formEmbStatus" required>
+                                    <option value="ativo">Ativo</option>
+                                    <option value="inativo">Inativo</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="formEmbarcacaoError" class="alert alert-danger py-2 d-none" role="alert"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="formEmbarcacaoSubmit"><i class="bi bi-check-lg me-1"></i> Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Editar OS (PUT) -->
+    <div class="modal fade" id="modalOrdemEdit" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalOrdemEditTitle">Editar ordem de serviço</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="formOsEditId" value="">
+                    <input type="hidden" id="formOsTipoEquip" value="">
+                    <input type="hidden" id="formOsEquipamentoId" value="">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tipo de equipamento</label>
+                            <input type="text" class="form-control" id="formOsTipoEquipLabel" readonly disabled>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Equipamento</label>
+                            <input type="text" class="form-control" id="formOsEquipLabel" readonly disabled>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="formOsTipoManut" class="form-label">Tipo de manutenção</label>
+                            <select class="form-select" id="formOsTipoManut" required>
+                                <option value="preventiva">Preventiva</option>
+                                <option value="corretiva">Corretiva</option>
+                                <option value="preditiva">Preditiva</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="formOsPrioridade" class="form-label">Prioridade</label>
+                            <select class="form-select" id="formOsPrioridade" required>
+                                <option value="baixa">Baixa</option>
+                                <option value="media">Média</option>
+                                <option value="alta">Alta</option>
+                                <option value="urgente">Urgente</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="formOsStatus" class="form-label">Status</label>
+                            <select class="form-select" id="formOsStatus" required>
+                                <option value="aberta">Aberta</option>
+                                <option value="em_andamento">Em andamento</option>
+                                <option value="concluida">Concluída</option>
+                                <option value="cancelada">Cancelada</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="formOsDataPrev" class="form-label">Estimativa de conclusão</label>
+                            <input type="date" class="form-control" id="formOsDataPrev">
+                        </div>
+                        <div class="col-md-4 mb-3" id="formOsOdometroWrap">
+                            <label for="formOsOdometro" class="form-label">Odômetro</label>
+                            <input type="number" class="form-control" id="formOsOdometro" min="0" step="1">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="formOsGestor" class="form-label">Gestor</label>
+                            <select class="form-select" id="formOsGestor" required></select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="formOsResponsavel" class="form-label">Responsável</label>
+                            <select class="form-select" id="formOsResponsavel" required></select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="formOsTipoProp" class="form-label">Proprietário</label>
+                            <select class="form-select" id="formOsTipoProp" required>
+                                <option value="proprio">Próprio</option>
+                                <option value="terceiro">Terceiro</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3" id="formOsClienteWrap">
+                            <label for="formOsCliente" class="form-label">Executor (terceiro)</label>
+                            <select class="form-select" id="formOsCliente"></select>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label for="formOsDescProb" class="form-label">Descrição do problema</label>
+                            <textarea class="form-control" id="formOsDescProb" rows="3"></textarea>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label for="formOsObs" class="form-label">Observações</label>
+                            <textarea class="form-control" id="formOsObs" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div id="formOsError" class="alert alert-danger py-2 d-none" role="alert"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="formOsSubmit"><i class="bi bi-check-lg me-1"></i> Salvar alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nova OS (POST) -->
+    <div class="modal fade" id="modalOrdemNova" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalOrdemNovaTitle">Nova ordem de serviço</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="formOsNovaTipoEquip" value="embarcacao">
+                    <input type="hidden" id="formOsNovaEquipamentoId" value="">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="formOsNovaDataAbertura" class="form-label">Data de abertura</label>
+                            <input type="date" class="form-control" id="formOsNovaDataAbertura" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="formOsNovaDataPrev" class="form-label">Estimativa de conclusão</label>
+                            <input type="date" class="form-control" id="formOsNovaDataPrev">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="formOsNovaTipoManut" class="form-label">Tipo de manutenção</label>
+                            <select class="form-select" id="formOsNovaTipoManut" required>
+                                <option value="preventiva">Preventiva</option>
+                                <option value="corretiva">Corretiva</option>
+                                <option value="preditiva">Preditiva</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="formOsNovaPrioridade" class="form-label">Prioridade</label>
+                            <select class="form-select" id="formOsNovaPrioridade" required>
+                                <option value="baixa">Baixa</option>
+                                <option value="media" selected>Média</option>
+                                <option value="alta">Alta</option>
+                                <option value="urgente">Urgente</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="formOsNovaGestor" class="form-label">Gestor</label>
+                            <select class="form-select" id="formOsNovaGestor" required></select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="formOsNovaResponsavel" class="form-label">Responsável</label>
+                            <select class="form-select" id="formOsNovaResponsavel" required></select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="formOsNovaTipoProp" class="form-label">Proprietário</label>
+                            <select class="form-select" id="formOsNovaTipoProp" required>
+                                <option value="proprio" selected>Próprio</option>
+                                <option value="terceiro">Terceiro</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3" id="formOsNovaClienteWrap">
+                            <label for="formOsNovaCliente" class="form-label">Executor (terceiro)</label>
+                            <select class="form-select" id="formOsNovaCliente"></select>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label for="formOsNovaDescProb" class="form-label">Descrição do problema</label>
+                            <textarea class="form-control" id="formOsNovaDescProb" rows="3"></textarea>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label for="formOsNovaObs" class="form-label">Observações</label>
+                            <textarea class="form-control" id="formOsNovaObs" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div id="formOsNovaError" class="alert alert-danger py-2 d-none" role="alert"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="formOsNovaSubmit"><i class="bi bi-check-lg me-1"></i> Criar OS</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="app.js"></script>
 </body>

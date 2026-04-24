@@ -6,11 +6,54 @@
     /** @type {string} */
     let currentRouteId = 'home';
 
+    /** Rota vinda do URL (#ordens); permite F5 manter a tela atual. */
+    function routeIdFromLocation() {
+        let h = (window.location.hash || '').replace(/^#/, '');
+        if (h.startsWith('/')) {
+            h = h.substring(1);
+        }
+        const segment = h.split(/[/?]/)[0] || '';
+        if (segment && SPA_ROUTES[segment]) {
+            return segment;
+        }
+        return 'home';
+    }
+
+    function syncRouteToUrl(routeId) {
+        if (!SPA_ROUTES[routeId]) {
+            return;
+        }
+        const wantHash = routeId === 'home' ? '' : '#' + routeId;
+        if (window.location.hash !== wantHash) {
+            history.replaceState(
+                null,
+                '',
+                window.location.pathname + window.location.search + wantHash
+            );
+        }
+    }
+
     let modalOrdem = null;
     let modalOrdemFiltros = null;
     let modalClienteVer = null;
     let modalClienteForm = null;
     let lastClienteViewId = null;
+    let modalUsuarioVer = null;
+    let modalUsuarioForm = null;
+    let lastUsuarioViewId = null;
+    let modalAlmoxVer = null;
+    let modalAlmoxForm = null;
+    let lastAlmoxViewId = null;
+    let modalEmbarcacaoVer = null;
+    let modalEmbarcacaoForm = null;
+    let lastEmbarcacaoViewId = null;
+    let modalOrdemEdit = null;
+    let modalOrdemNova = null;
+    let lastOrdemDetail = null;
+    /** @type {Array<Record<string, unknown>>|null} */
+    let cachedUsuarios = null;
+    /** @type {Array<Record<string, unknown>>|null} */
+    let cachedClientes = null;
 
     /** @type {{ is_gestor?: boolean, nivel_acesso?: string, nome?: string, email?: string, id?: number } | null} */
     let currentUser = null;
@@ -659,15 +702,19 @@
         ).href;
     }
 
-    function embarcacaoAcoesHtml() {
+    function embarcacaoAcoesHtml(row) {
+        const id = row.id;
         return (
             '<div class="btn-group">' +
-            '<button type="button" class="btn btn-sm btn-info" disabled title="Visualização em evolução na API">' +
-            '<i class="bi bi-eye"></i></button>' +
-            '<button type="button" class="btn btn-sm btn-warning" disabled title="Edição em evolução na API">' +
-            '<i class="bi bi-pencil"></i></button>' +
-            '<button type="button" class="btn btn-sm btn-success" disabled title="Nova OS em evolução na API">' +
-            '<i class="bi bi-clipboard-plus"></i></button>' +
+            '<button type="button" class="btn btn-sm btn-info btn-view-embarcacao" data-id="' +
+            escapeHtml(String(id)) +
+            '" title="Visualizar"><i class="bi bi-eye"></i></button>' +
+            '<button type="button" class="btn btn-sm btn-warning btn-edit-embarcacao" data-id="' +
+            escapeHtml(String(id)) +
+            '" title="Editar"><i class="bi bi-pencil"></i></button>' +
+            '<button type="button" class="btn btn-sm btn-success btn-nova-os-embarcacao" data-id="' +
+            escapeHtml(String(id)) +
+            '" title="Nova OS"><i class="bi bi-clipboard-plus"></i></button>' +
             '</div>'
         );
     }
@@ -969,8 +1016,15 @@
         });
     }
 
-    function navigate(routeId) {
-        if (!SPA_ROUTES[routeId]) routeId = 'home';
+    /**
+     * @param {string} routeId
+     * @param {{ fromHash?: boolean }} [opts] — se true, não altera o hash (evita loop com hashchange)
+     */
+    function navigate(routeId, opts) {
+        const fromHash = opts && opts.fromHash === true;
+        if (!SPA_ROUTES[routeId]) {
+            routeId = 'home';
+        }
         currentRouteId = routeId;
         const r = SPA_ROUTES[currentRouteId];
         document.title = 'Sistema de Manutenção — ' + r.title;
@@ -983,6 +1037,9 @@
         } else if (r.type === 'stub') {
             el('stubTitle').textContent = r.title;
             el('stubBody').textContent = r.stubBody || '';
+        }
+        if (!fromHash) {
+            syncRouteToUrl(currentRouteId);
         }
     }
 
@@ -1017,9 +1074,7 @@
             b.type = 'button';
             b.className = 'btn btn-primary';
             b.innerHTML = '<i class="bi bi-plus"></i> Nova Embarcação';
-            b.addEventListener('click', () =>
-                showAppOk('Cadastro de embarcação pela API em evolução.')
-            );
+            b.addEventListener('click', () => openEmbarcacaoFormModal(null));
             wrap.appendChild(b);
         }
         if (route.almoxNovo && currentUser && currentUser.is_gestor) {
@@ -1027,9 +1082,7 @@
             b.type = 'button';
             b.className = 'btn btn-primary';
             b.innerHTML = '<i class="bi bi-plus"></i> Novo Item';
-            b.addEventListener('click', () =>
-                showAppOk('Cadastro de item pelo app desacoplado em evolução.')
-            );
+            b.addEventListener('click', () => openAlmoxFormModal(null));
             wrap.appendChild(b);
         }
         if (route.usuarioNovo && currentUser && currentUser.is_gestor) {
@@ -1037,9 +1090,7 @@
             b.type = 'button';
             b.className = 'btn btn-primary';
             b.innerHTML = '<i class="bi bi-plus"></i> Novo Usuário';
-            b.addEventListener('click', () =>
-                showAppOk('Cadastro de usuário pela API em evolução.')
-            );
+            b.addEventListener('click', () => openUsuarioFormModal(null));
             wrap.appendChild(b);
         }
     }
@@ -1236,7 +1287,7 @@
                 } else if (route.embarcacaoActions) {
                     const td = document.createElement('td');
                     td.className = 'table-cell-actions';
-                    td.innerHTML = embarcacaoAcoesHtml();
+                    td.innerHTML = embarcacaoAcoesHtml(row);
                     tr.appendChild(td);
                 } else if (route.ordemActions) {
                     const td = document.createElement('td');
@@ -1244,7 +1295,7 @@
                     const oid = row.id;
                     td.innerHTML =
                         '<div class="btn-group">' +
-                        '<button type="button" class="btn btn-sm btn-warning btn-ordem-stub-edit" data-ordem-id="' +
+                        '<button type="button" class="btn btn-sm btn-warning btn-ordem-edit-open" data-ordem-id="' +
                         escapeHtml(String(oid)) +
                         '" title="Editar"><i class="bi bi-pencil"></i></button>' +
                         '<button type="button" class="btn btn-sm btn-info btn-ordem-view" data-ordem-id="' +
@@ -1259,11 +1310,17 @@
                     const g = currentUser && currentUser.is_gestor;
                     let h =
                         '<div class="btn-group">' +
-                        '<button type="button" class="btn btn-sm btn-info" disabled title="Visualização em evolução na API"><i class="bi bi-eye"></i></button>';
+                        '<button type="button" class="btn btn-sm btn-info btn-view-usuario" data-id="' +
+                        escapeHtml(String(id)) +
+                        '" title="Visualizar"><i class="bi bi-eye"></i></button>';
                     if (g) {
                         h +=
-                            '<button type="button" class="btn btn-sm btn-warning" disabled title="Edição em evolução na API"><i class="bi bi-pencil"></i></button>' +
-                            '<button type="button" class="btn btn-sm btn-danger" disabled title="Exclusão em evolução na API"><i class="bi bi-trash"></i></button>';
+                            '<button type="button" class="btn btn-sm btn-warning btn-edit-usuario" data-id="' +
+                            escapeHtml(String(id)) +
+                            '" title="Editar"><i class="bi bi-pencil"></i></button>' +
+                            '<button type="button" class="btn btn-sm btn-danger btn-del-usuario" data-id="' +
+                            escapeHtml(String(id)) +
+                            '" title="Excluir"><i class="bi bi-trash"></i></button>';
                     }
                     h += '</div>';
                     td.innerHTML = h;
@@ -1271,10 +1328,18 @@
                 } else if (showAlmoxActions) {
                     const td = document.createElement('td');
                     td.className = 'table-cell-actions';
+                    const aid = row.id;
                     td.innerHTML =
                         '<div class="btn-group">' +
-                        '<button type="button" class="btn btn-sm btn-warning" disabled title="Edição em evolução na API"><i class="bi bi-pencil"></i></button>' +
-                        '<button type="button" class="btn btn-sm btn-danger" disabled title="Exclusão em evolução na API"><i class="bi bi-trash"></i></button>' +
+                        '<button type="button" class="btn btn-sm btn-info btn-view-almox" data-id="' +
+                        escapeHtml(String(aid)) +
+                        '" title="Visualizar"><i class="bi bi-eye"></i></button>' +
+                        '<button type="button" class="btn btn-sm btn-warning btn-edit-almox" data-id="' +
+                        escapeHtml(String(aid)) +
+                        '" title="Editar"><i class="bi bi-pencil"></i></button>' +
+                        '<button type="button" class="btn btn-sm btn-danger btn-del-almox" data-id="' +
+                        escapeHtml(String(aid)) +
+                        '" title="Excluir"><i class="bi bi-trash"></i></button>' +
                         '</div>';
                     tr.appendChild(td);
                 }
@@ -1319,6 +1384,12 @@
                 '<a class="btn btn-success btn-sm" href="' +
                 escapeHtml(pdfOsHref(item.id)) +
                 '" target="_blank" rel="noopener"><i class="bi bi-download"></i> Download PDF</a>';
+        }
+        if (item.status === 'aberta') {
+            toolbar +=
+                '<button type="button" class="btn btn-warning btn-sm js-editar-os-aperta" data-ordem-id="' +
+                escapeHtml(String(item.id ?? '')) +
+                '"><i class="bi bi-pencil"></i> Editar OS</button>';
         }
         toolbar += '</div>';
 
@@ -1521,11 +1592,13 @@
         const title = el('modalOrdemTitle');
         title.textContent = 'Ordem de serviço #' + id;
         body.innerHTML = '<p class="text-muted">Carregando…</p>';
+        lastOrdemDetail = null;
         modalOrdem.show();
         try {
             const data = await apiFetch('ordem_servico.php?id=' + encodeURIComponent(String(id)), { method: 'GET' });
             const item = data.item || {};
             const itens = data.itens || [];
+            lastOrdemDetail = item;
             const ref = item.numero_os != null && String(item.numero_os).trim() !== ''
                 ? String(item.numero_os)
                 : String(item.id ?? id);
@@ -1534,6 +1607,542 @@
         } catch (e) {
             const msg = e.data && e.data.message ? e.data.message : e.message;
             body.innerHTML = '<p class="text-danger">' + escapeHtml(msg) + '</p>';
+        }
+    }
+
+    async function ensureUsuariosCache() {
+        if (cachedUsuarios) return cachedUsuarios;
+        const d = await apiFetch('usuarios.php', { method: 'GET' });
+        cachedUsuarios = d.items || [];
+        return cachedUsuarios;
+    }
+
+    async function ensureClientesCache() {
+        if (cachedClientes) return cachedClientes;
+        const d = await apiFetch('clientes.php', { method: 'GET' });
+        cachedClientes = d.items || [];
+        return cachedClientes;
+    }
+
+    function isUsuarioGestorDb(nivel) {
+        const n = String(nivel || '');
+        return n === 'gestor' || n === 'admin';
+    }
+
+    async function fillOsUserSelects(gestorSel, respSel) {
+        const items = await ensureUsuariosCache();
+        gestorSel.innerHTML = '';
+        respSel.innerHTML = '';
+        for (const u of items) {
+            if (isUsuarioGestorDb(u.nivel_acesso)) {
+                const o = document.createElement('option');
+                o.value = String(u.id);
+                o.textContent = String(u.nome || u.email || u.id);
+                gestorSel.appendChild(o);
+            }
+            const o2 = document.createElement('option');
+            o2.value = String(u.id);
+            o2.textContent = String(u.nome || u.email || u.id);
+            respSel.appendChild(o2);
+        }
+    }
+
+    async function fillClienteSelect(sel) {
+        const items = await ensureClientesCache();
+        sel.innerHTML = '<option value="">Selecione…</option>';
+        for (const c of items) {
+            const o = document.createElement('option');
+            o.value = String(c.id);
+            o.textContent = String(c.nome || c.id);
+            sel.appendChild(o);
+        }
+    }
+
+    function osDateInputVal(iso) {
+        if (!iso) return '';
+        const s = String(iso);
+        const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+        return m ? m[1] : '';
+    }
+
+    async function openOrdemEditModal(ordemId) {
+        if (!modalOrdemEdit) return;
+        showError('formOsError', '', false);
+        el('modalOrdemEditTitle').textContent = 'Editar ordem #' + ordemId;
+        el('formOsEditId').value = String(ordemId);
+        el('modalOrdemEdit').querySelector('.modal-body').scrollTop = 0;
+        modalOrdemEdit.show();
+        try {
+            const data = await apiFetch('ordem_servico.php?id=' + encodeURIComponent(String(ordemId)), { method: 'GET' });
+            const item = data.item || {};
+            if ((item.status || '') !== 'aberta') {
+                modalOrdemEdit.hide();
+                showAppOk('Só é possível editar OS abertas.');
+                return;
+            }
+            lastOrdemDetail = item;
+            el('formOsTipoEquip').value = String(item.tipo_equipamento || '');
+            el('formOsEquipamentoId').value = String(item.equipamento_id ?? '');
+            el('formOsTipoEquipLabel').value = labelTipoEquipamento(item.tipo_equipamento);
+            el('formOsEquipLabel').value = String(item.identificacao_equipamento || item.equipamento_id || '');
+            el('formOsTipoManut').value = String(item.tipo_manutencao || 'preventiva');
+            let pr = String(item.prioridade || 'media');
+            if (pr === 'critica') pr = 'urgente';
+            el('formOsPrioridade').value = pr;
+            el('formOsStatus').value = String(item.status || 'aberta');
+            el('formOsDataPrev').value = osDateInputVal(item.data_prevista);
+            const tipoEq = String(item.tipo_equipamento || '');
+            const odoW = el('formOsOdometroWrap');
+            const odo = el('formOsOdometro');
+            if (tipoEq === 'veiculo' || tipoEq === 'implemento') {
+                odoW.classList.remove('d-none');
+                odo.value = item.odometro != null && item.odometro !== '' ? String(item.odometro) : '';
+            } else {
+                odoW.classList.add('d-none');
+                odo.value = '';
+            }
+            el('formOsObs').value = item.observacoes != null ? String(item.observacoes) : '';
+            el('formOsDescProb').value = item.descricao_problema != null ? String(item.descricao_problema) : '';
+            await fillOsUserSelects(el('formOsGestor'), el('formOsResponsavel'));
+            if (item.gestor_id) el('formOsGestor').value = String(item.gestor_id);
+            if (item.usuario_responsavel_id) el('formOsResponsavel').value = String(item.usuario_responsavel_id);
+            const temCliente = item.cliente_id != null && String(item.cliente_id) !== '' && Number(item.cliente_id) > 0;
+            el('formOsTipoProp').value = temCliente ? 'terceiro' : 'proprio';
+            await fillClienteSelect(el('formOsCliente'));
+            if (temCliente) el('formOsCliente').value = String(item.cliente_id);
+            syncOsClienteWrapVisibility();
+        } catch (e) {
+            const msg = e.data && e.data.message ? e.data.message : e.message;
+            showError('formOsError', msg, true);
+        }
+    }
+
+    function syncOsClienteWrapVisibility() {
+        const tp = el('formOsTipoProp').value;
+        const w = el('formOsClienteWrap');
+        if (tp === 'terceiro') w.classList.remove('d-none');
+        else w.classList.add('d-none');
+    }
+
+    function syncOsNovaClienteWrapVisibility() {
+        const tp = el('formOsNovaTipoProp').value;
+        const w = el('formOsNovaClienteWrap');
+        if (tp === 'terceiro') w.classList.remove('d-none');
+        else w.classList.add('d-none');
+    }
+
+    async function saveOrdemEdit() {
+        showError('formOsError', '', false);
+        const id = parseInt(el('formOsEditId').value, 10);
+        if (id < 1) return;
+        const tipoProp = el('formOsTipoProp').value;
+        const payload = {
+            tipo_equipamento: el('formOsTipoEquip').value,
+            equipamento_id: parseInt(el('formOsEquipamentoId').value, 10),
+            tipo_manutencao: el('formOsTipoManut').value,
+            prioridade: el('formOsPrioridade').value,
+            status: el('formOsStatus').value,
+            gestor_id: parseInt(el('formOsGestor').value, 10),
+            usuario_responsavel_id: parseInt(el('formOsResponsavel').value, 10),
+            tipo_proprietario: tipoProp,
+            cliente_id: tipoProp === 'terceiro' ? parseInt(el('formOsCliente').value, 10) : null,
+            data_prevista: el('formOsDataPrev').value || null,
+            observacoes: el('formOsObs').value.trim(),
+            descricao_problema: el('formOsDescProb').value.trim(),
+            sistemas_afetados: [],
+            sintomas_detectados: [],
+            causas_defeitos: [],
+            tipo_intervencao: [],
+            acoes_realizadas: [],
+        };
+        const tipoEq = el('formOsTipoEquip').value;
+        if (tipoEq === 'veiculo' || tipoEq === 'implemento') {
+            const ov = el('formOsOdometro').value.trim();
+            payload.odometro = ov === '' ? null : parseFloat(ov.replace(',', '.'));
+        }
+        if (tipoProp === 'terceiro' && (!payload.cliente_id || payload.cliente_id < 1)) {
+            showError('formOsError', 'Selecione o executor (terceiro).', true);
+            return;
+        }
+        try {
+            await apiFetch('ordem_servico.php?id=' + encodeURIComponent(String(id)), {
+                method: 'PUT',
+                body: JSON.stringify(payload),
+            });
+            modalOrdemEdit.hide();
+            showAppOk('Ordem de serviço atualizada.');
+            if (currentRouteId === 'ordens') await loadList();
+            const mo = el('modalOrdem');
+            if (mo && mo.classList.contains('show')) {
+                await openOrdemModal(id);
+            }
+        } catch (e) {
+            const msg = e.data && e.data.message ? e.data.message : e.message || 'Erro ao salvar.';
+            showError('formOsError', msg, true);
+        }
+    }
+
+    async function openOrdemNovaModal(embarcacaoId) {
+        if (!modalOrdemNova) return;
+        showError('formOsNovaError', '', false);
+        el('formOsNovaTipoEquip').value = 'embarcacao';
+        el('formOsNovaEquipamentoId').value = String(embarcacaoId);
+        el('modalOrdemNovaTitle').textContent = 'Nova OS — embarcação #' + embarcacaoId;
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const d = String(today.getDate()).padStart(2, '0');
+        el('formOsNovaDataAbertura').value = y + '-' + m + '-' + d;
+        el('formOsNovaDataPrev').value = '';
+        el('formOsNovaTipoManut').value = 'preventiva';
+        el('formOsNovaPrioridade').value = 'media';
+        el('formOsNovaTipoProp').value = 'proprio';
+        el('formOsNovaDescProb').value = '';
+        el('formOsNovaObs').value = '';
+        await fillOsUserSelects(el('formOsNovaGestor'), el('formOsNovaResponsavel'));
+        if (currentUser && currentUser.id) {
+            try {
+                el('formOsNovaResponsavel').value = String(currentUser.id);
+            } catch {
+                /* ok */
+            }
+        }
+        await fillClienteSelect(el('formOsNovaCliente'));
+        syncOsNovaClienteWrapVisibility();
+        modalOrdemNova.show();
+    }
+
+    async function saveOrdemNova() {
+        showError('formOsNovaError', '', false);
+        const tipoProp = el('formOsNovaTipoProp').value;
+        const equipId = parseInt(el('formOsNovaEquipamentoId').value, 10);
+        if (equipId < 1) {
+            showError('formOsNovaError', 'Equipamento inválido.', true);
+            return;
+        }
+        const payload = {
+            tipo_equipamento: el('formOsNovaTipoEquip').value,
+            equipamento_id: equipId,
+            tipo_manutencao: el('formOsNovaTipoManut').value,
+            prioridade: el('formOsNovaPrioridade').value,
+            gestor_id: parseInt(el('formOsNovaGestor').value, 10),
+            usuario_responsavel_id: parseInt(el('formOsNovaResponsavel').value, 10),
+            tipo_proprietario: tipoProp,
+            cliente_id: tipoProp === 'terceiro' ? parseInt(el('formOsNovaCliente').value, 10) : null,
+            data_abertura: el('formOsNovaDataAbertura').value,
+            data_prevista: el('formOsNovaDataPrev').value || null,
+            observacoes: el('formOsNovaObs').value.trim(),
+            descricao_problema: el('formOsNovaDescProb').value.trim(),
+            sistemas_afetados: [],
+            sintomas_detectados: [],
+            causas_defeitos: [],
+            tipo_intervencao: [],
+            acoes_realizadas: [],
+        };
+        if (tipoProp === 'terceiro' && (!payload.cliente_id || payload.cliente_id < 1)) {
+            showError('formOsNovaError', 'Selecione o executor (terceiro).', true);
+            return;
+        }
+        try {
+            const data = await apiFetch('ordem_servico.php', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            });
+            modalOrdemNova.hide();
+            showAppOk('Ordem de serviço criada.');
+            if (currentRouteId === 'ordens') await loadList();
+            if (data.id) await openOrdemModal(data.id);
+        } catch (e) {
+            const msg = e.data && e.data.message ? e.data.message : e.message || 'Erro ao criar OS.';
+            showError('formOsNovaError', msg, true);
+        }
+    }
+
+    const labelsUsuario = {
+        id: 'ID',
+        nome: 'Nome',
+        email: 'E-mail',
+        nivel_acesso: 'Nível de acesso',
+        data_criacao: 'Data criação',
+    };
+
+    async function openUsuarioVerModal(id) {
+        lastUsuarioViewId = id;
+        el('modalUsuarioVerTitle').textContent = 'Usuário #' + id;
+        el('modalUsuarioVerBody').innerHTML = '<p class="text-muted">Carregando…</p>';
+        modalUsuarioVer.show();
+        try {
+            const data = await apiFetch('usuario.php?id=' + encodeURIComponent(String(id)), { method: 'GET' });
+            const item = data.item || {};
+            el('modalUsuarioVerBody').innerHTML = renderDl(item, labelsUsuario);
+        } catch (e) {
+            const msg = e.data && e.data.message ? e.data.message : e.message;
+            el('modalUsuarioVerBody').innerHTML = '<p class="text-danger">' + escapeHtml(msg) + '</p>';
+        }
+    }
+
+    function openUsuarioFormModal(item) {
+        showError('formUsuarioError', '', false);
+        const isEdit = item && item.id != null;
+        el('modalUsuarioFormTitle').textContent = isEdit ? 'Editar usuário' : 'Novo usuário';
+        el('formUsuarioEditId').value = isEdit ? String(item.id) : '';
+        el('formUsuarioNome').value = item && item.nome != null ? String(item.nome) : '';
+        el('formUsuarioEmail').value = item && item.email != null ? String(item.email) : '';
+        el('formUsuarioSenha').value = '';
+        let nv = item && item.nivel_acesso != null ? String(item.nivel_acesso) : 'responsavel';
+        if (nv === 'admin') nv = 'gestor';
+        if (nv === 'usuario') nv = 'responsavel';
+        el('formUsuarioNivel').value = nv === 'gestor' ? 'gestor' : 'responsavel';
+        el('formUsuarioSenhaHint').textContent = isEdit
+            ? 'Deixe em branco para manter a senha atual.'
+            : 'Obrigatória no cadastro.';
+        modalUsuarioForm.show();
+    }
+
+    async function saveUsuarioForm() {
+        showError('formUsuarioError', '', false);
+        const editId = el('formUsuarioEditId').value.trim();
+        const payload = {
+            nome: el('formUsuarioNome').value.trim(),
+            email: el('formUsuarioEmail').value.trim(),
+            nivel_acesso: el('formUsuarioNivel').value,
+            senha: el('formUsuarioSenha').value,
+        };
+        if (!payload.nome) {
+            showError('formUsuarioError', 'Nome é obrigatório.', true);
+            return;
+        }
+        if (!payload.email) {
+            showError('formUsuarioError', 'E-mail é obrigatório.', true);
+            return;
+        }
+        if (!editId && !payload.senha) {
+            showError('formUsuarioError', 'Senha é obrigatória no cadastro.', true);
+            return;
+        }
+        try {
+            if (editId) {
+                const body = { nome: payload.nome, email: payload.email, nivel_acesso: payload.nivel_acesso };
+                if (payload.senha) body.senha = payload.senha;
+                await apiFetch('usuario.php?id=' + encodeURIComponent(editId), {
+                    method: 'PUT',
+                    body: JSON.stringify(body),
+                });
+            } else {
+                await apiFetch('usuario.php', {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                });
+            }
+            modalUsuarioForm.hide();
+            cachedUsuarios = null;
+            showAppOk(editId ? 'Usuário atualizado.' : 'Usuário cadastrado.');
+            if (currentRouteId === 'usuarios') await loadList();
+        } catch (e) {
+            const msg = e.data && e.data.message ? e.data.message : e.message || 'Erro ao salvar.';
+            showError('formUsuarioError', msg, true);
+        }
+    }
+
+    async function deleteUsuario(id) {
+        if (!confirm('Excluir este usuário?')) return;
+        try {
+            await apiFetch('usuario.php?id=' + encodeURIComponent(String(id)), { method: 'DELETE' });
+            cachedUsuarios = null;
+            showAppOk('Usuário excluído.');
+            if (currentRouteId === 'usuarios') await loadList();
+        } catch (e) {
+            const msg = e.data && e.data.message ? e.data.message : e.message;
+            showError('appError', msg, true);
+        }
+    }
+
+    const labelsAlmox = {
+        id: 'ID',
+        codigo_barras: 'Código de barras',
+        nome: 'Nome',
+        quantidade: 'Quantidade',
+        valor_unitario: 'Valor unitário',
+    };
+
+    async function openAlmoxVerModal(id) {
+        lastAlmoxViewId = id;
+        el('modalAlmoxVerTitle').textContent = 'Item #' + id;
+        el('modalAlmoxVerBody').innerHTML = '<p class="text-muted">Carregando…</p>';
+        modalAlmoxVer.show();
+        try {
+            const data = await apiFetch('almoxarifado_item.php?id=' + encodeURIComponent(String(id)), { method: 'GET' });
+            const item = data.item || {};
+            el('modalAlmoxVerBody').innerHTML = renderDl(item, labelsAlmox);
+        } catch (e) {
+            const msg = e.data && e.data.message ? e.data.message : e.message;
+            el('modalAlmoxVerBody').innerHTML = '<p class="text-danger">' + escapeHtml(msg) + '</p>';
+        }
+    }
+
+    function openAlmoxFormModal(item) {
+        showError('formAlmoxError', '', false);
+        const isEdit = item && item.id != null;
+        el('modalAlmoxFormTitle').textContent = isEdit ? 'Editar item' : 'Novo item';
+        el('formAlmoxEditId').value = isEdit ? String(item.id) : '';
+        el('formAlmoxCodigo').value = item && item.codigo_barras != null ? String(item.codigo_barras) : '';
+        el('formAlmoxNome').value = item && item.nome != null ? String(item.nome) : '';
+        el('formAlmoxQtd').value =
+            item && item.quantidade != null && item.quantidade !== '' ? String(item.quantidade) : '0';
+        el('formAlmoxValor').value =
+            item && item.valor_unitario != null && item.valor_unitario !== ''
+                ? String(item.valor_unitario).replace(',', '.')
+                : '0';
+        el('formAlmoxCodigo').readOnly = !!isEdit;
+        modalAlmoxForm.show();
+    }
+
+    async function saveAlmoxForm() {
+        showError('formAlmoxError', '', false);
+        const editId = el('formAlmoxEditId').value.trim();
+        const payload = {
+            codigo_barras: el('formAlmoxCodigo').value.trim(),
+            nome: el('formAlmoxNome').value.trim(),
+            quantidade: parseInt(el('formAlmoxQtd').value, 10),
+            valor_unitario: parseFloat(String(el('formAlmoxValor').value).replace(',', '.')),
+        };
+        if (!payload.nome) {
+            showError('formAlmoxError', 'Nome é obrigatório.', true);
+            return;
+        }
+        if (Number.isNaN(payload.quantidade) || payload.quantidade < 0) {
+            showError('formAlmoxError', 'Quantidade inválida.', true);
+            return;
+        }
+        if (Number.isNaN(payload.valor_unitario) || payload.valor_unitario < 0) {
+            showError('formAlmoxError', 'Valor unitário inválido.', true);
+            return;
+        }
+        try {
+            if (editId) {
+                await apiFetch('almoxarifado_item.php?id=' + encodeURIComponent(editId), {
+                    method: 'PUT',
+                    body: JSON.stringify(payload),
+                });
+            } else {
+                await apiFetch('almoxarifado_item.php', {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                });
+            }
+            modalAlmoxForm.hide();
+            showAppOk(editId ? 'Item atualizado.' : 'Item cadastrado.');
+            if (currentRouteId === 'almoxarifado') await loadList();
+        } catch (e) {
+            const msg = e.data && e.data.message ? e.data.message : e.message || 'Erro ao salvar.';
+            showError('formAlmoxError', msg, true);
+        }
+    }
+
+    async function deleteAlmox(id) {
+        if (!confirm('Excluir este item?')) return;
+        try {
+            await apiFetch('almoxarifado_item.php?id=' + encodeURIComponent(String(id)), { method: 'DELETE' });
+            showAppOk('Item excluído.');
+            if (currentRouteId === 'almoxarifado') await loadList();
+        } catch (e) {
+            const msg = e.data && e.data.message ? e.data.message : e.message;
+            showError('appError', msg, true);
+        }
+    }
+
+    function syncEmbarcacaoSubtipoField() {
+        const t = el('formEmbTipo').value;
+        const wrap = el('formEmbSubtipoWrap');
+        const need = t === 'balsa_simples' || t === 'balsa_motorizada';
+        if (need) wrap.classList.remove('d-none');
+        else wrap.classList.add('d-none');
+    }
+
+    async function openEmbarcacaoVerModal(id) {
+        lastEmbarcacaoViewId = id;
+        el('modalEmbarcacaoVerTitle').textContent = 'Embarcação #' + id;
+        el('modalEmbarcacaoVerBody').innerHTML = '<p class="text-muted">Carregando…</p>';
+        modalEmbarcacaoVer.show();
+        try {
+            const data = await apiFetch('embarcacao.php?id=' + encodeURIComponent(String(id)), { method: 'GET' });
+            const item = data.item || {};
+            const keys = Object.keys(item).filter((k) => k !== 'foto').sort((a, b) => a.localeCompare(b));
+            let html = '<dl class="row mb-0">';
+            for (const k of keys) {
+                html +=
+                    '<dt class="col-sm-4 text-muted small">' +
+                    escapeHtml(k) +
+                    '</dt><dd class="col-sm-8">' +
+                    formatCellVal(item[k], null) +
+                    '</dd>';
+            }
+            html += '</dl>';
+            el('modalEmbarcacaoVerBody').innerHTML = html;
+        } catch (e) {
+            const msg = e.data && e.data.message ? e.data.message : e.message;
+            el('modalEmbarcacaoVerBody').innerHTML = '<p class="text-danger">' + escapeHtml(msg) + '</p>';
+        }
+    }
+
+    function openEmbarcacaoFormModal(item) {
+        showError('formEmbarcacaoError', '', false);
+        const isEdit = item && item.id != null;
+        el('modalEmbarcacaoFormTitle').textContent = isEdit ? 'Editar embarcação' : 'Nova embarcação';
+        el('formEmbarcacaoEditId').value = isEdit ? String(item.id) : '';
+        el('formEmbTipo').value = item && item.tipo ? String(item.tipo) : 'empurrador';
+        el('formEmbSubtipo').value = item && item.subtipo_balsa ? String(item.subtipo_balsa) : '';
+        el('formEmbTag').value = item && item.tag != null ? String(item.tag) : '';
+        el('formEmbInscricao').value = item && item.inscricao != null ? String(item.inscricao) : '';
+        el('formEmbNome').value = item && item.nome != null ? String(item.nome) : '';
+        el('formEmbArmador').value = item && item.armador != null ? String(item.armador) : '';
+        el('formEmbAno').value = item && item.ano_fabricacao != null ? String(item.ano_fabricacao) : '';
+        el('formEmbCap').value =
+            item && item.capacidade_volumetrica != null && item.capacidade_volumetrica !== ''
+                ? String(item.capacidade_volumetrica).replace(',', '.')
+                : '';
+        el('formEmbStatus').value = item && item.status ? String(item.status) : 'ativo';
+        syncEmbarcacaoSubtipoField();
+        modalEmbarcacaoForm.show();
+    }
+
+    async function saveEmbarcacaoForm() {
+        showError('formEmbarcacaoError', '', false);
+        const editId = el('formEmbarcacaoEditId').value.trim();
+        const payload = {
+            tipo: el('formEmbTipo').value,
+            subtipo_balsa: el('formEmbSubtipo').value || null,
+            tag: el('formEmbTag').value.trim(),
+            inscricao: el('formEmbInscricao').value.trim(),
+            nome: el('formEmbNome').value.trim(),
+            armador: el('formEmbArmador').value.trim(),
+            ano_fabricacao: el('formEmbAno').value.trim() === '' ? null : parseInt(el('formEmbAno').value, 10),
+            capacidade_volumetrica:
+                el('formEmbCap').value.trim() === '' ? null : parseFloat(String(el('formEmbCap').value).replace(',', '.')),
+            status: el('formEmbStatus').value,
+        };
+        if (!payload.nome || !payload.tag || !payload.inscricao) {
+            showError('formEmbarcacaoError', 'Tag, inscrição e nome são obrigatórios.', true);
+            return;
+        }
+        try {
+            if (editId) {
+                await apiFetch('embarcacao.php?id=' + encodeURIComponent(editId), {
+                    method: 'PUT',
+                    body: JSON.stringify(payload),
+                });
+            } else {
+                await apiFetch('embarcacao.php', {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                });
+            }
+            modalEmbarcacaoForm.hide();
+            showAppOk(editId ? 'Embarcação atualizada.' : 'Embarcação cadastrada.');
+            if (currentRouteId === 'embarcacoes') await loadList();
+        } catch (e) {
+            const msg = e.data && e.data.message ? e.data.message : e.message || 'Erro ao salvar.';
+            showError('formEmbarcacaoError', msg, true);
         }
     }
 
@@ -1655,9 +2264,17 @@
             if (!modalOrdemFiltros) modalOrdemFiltros = new bootstrap.Modal(el('modalOrdemFiltros'));
             if (!modalClienteVer) modalClienteVer = new bootstrap.Modal(el('modalClienteVer'));
             if (!modalClienteForm) modalClienteForm = new bootstrap.Modal(el('modalClienteForm'));
+            if (!modalUsuarioVer) modalUsuarioVer = new bootstrap.Modal(el('modalUsuarioVer'));
+            if (!modalUsuarioForm) modalUsuarioForm = new bootstrap.Modal(el('modalUsuarioForm'));
+            if (!modalAlmoxVer) modalAlmoxVer = new bootstrap.Modal(el('modalAlmoxVer'));
+            if (!modalAlmoxForm) modalAlmoxForm = new bootstrap.Modal(el('modalAlmoxForm'));
+            if (!modalEmbarcacaoVer) modalEmbarcacaoVer = new bootstrap.Modal(el('modalEmbarcacaoVer'));
+            if (!modalEmbarcacaoForm) modalEmbarcacaoForm = new bootstrap.Modal(el('modalEmbarcacaoForm'));
+            if (!modalOrdemEdit) modalOrdemEdit = new bootstrap.Modal(el('modalOrdemEdit'));
+            if (!modalOrdemNova) modalOrdemNova = new bootstrap.Modal(el('modalOrdemNova'));
         }
         wireOrdemFiltrosOnce();
-        navigate('home');
+        navigate(routeIdFromLocation(), { fromHash: true });
     }
 
     function setLoggedOutUI() {
@@ -1669,6 +2286,16 @@
         modalOrdemFiltros = null;
         modalClienteVer = null;
         modalClienteForm = null;
+        modalUsuarioVer = null;
+        modalUsuarioForm = null;
+        modalAlmoxVer = null;
+        modalAlmoxForm = null;
+        modalEmbarcacaoVer = null;
+        modalEmbarcacaoForm = null;
+        modalOrdemEdit = null;
+        modalOrdemNova = null;
+        cachedUsuarios = null;
+        cachedClientes = null;
     }
 
     async function trySession() {
@@ -1709,7 +2336,16 @@
         const link = ev.target.closest('a.spa-nav');
         if (!link || !link.dataset.spaView) return;
         ev.preventDefault();
-        navigate(link.dataset.spaView);
+        navigate(link.dataset.spaView, {});
+    });
+
+    window.addEventListener('hashchange', () => {
+        const app = el('viewApp');
+        if (!app || app.classList.contains('d-none')) {
+            return;
+        }
+        const id = routeIdFromLocation();
+        navigate(id, { fromHash: true });
     });
 
     el('spaViewHome').addEventListener('click', (ev) => {
@@ -1721,12 +2357,13 @@
     });
 
     el('dataTableBody').addEventListener('click', (ev) => {
-        const oEdit = ev.target.closest('.btn-ordem-stub-edit');
+        const oEdit = ev.target.closest('.btn-ordem-edit-open');
         const oView = ev.target.closest('.btn-ordem-view');
         if (oEdit) {
             ev.preventDefault();
             ev.stopPropagation();
-            showAppOk('Edição pela API em evolução.');
+            const oid = parseInt(oEdit.getAttribute('data-ordem-id') || '0', 10);
+            if (oid > 0) openOrdemEditModal(oid);
             return;
         }
         if (oView) {
@@ -1750,6 +2387,93 @@
             ev.preventDefault();
             const id = parseInt(vw.getAttribute('data-id') || '0', 10);
             if (id > 0) openClienteVerModal(id);
+            return;
+        }
+        const uv = ev.target.closest('.btn-view-usuario');
+        const ue = ev.target.closest('.btn-edit-usuario');
+        const ud = ev.target.closest('.btn-del-usuario');
+        if (uv) {
+            ev.preventDefault();
+            const id = parseInt(uv.getAttribute('data-id') || '0', 10);
+            if (id > 0) openUsuarioVerModal(id);
+            return;
+        }
+        if (ue) {
+            ev.preventDefault();
+            const id = parseInt(ue.getAttribute('data-id') || '0', 10);
+            if (id > 0) {
+                apiFetch('usuario.php?id=' + encodeURIComponent(String(id)), { method: 'GET' })
+                    .then((data) => openUsuarioFormModal(data.item || {}))
+                    .catch(() => {});
+            }
+            return;
+        }
+        if (ud) {
+            ev.preventDefault();
+            const id = parseInt(ud.getAttribute('data-id') || '0', 10);
+            if (id > 0) deleteUsuario(id);
+            return;
+        }
+        const av = ev.target.closest('.btn-view-almox');
+        const ae = ev.target.closest('.btn-edit-almox');
+        const ad = ev.target.closest('.btn-del-almox');
+        if (av) {
+            ev.preventDefault();
+            const id = parseInt(av.getAttribute('data-id') || '0', 10);
+            if (id > 0) openAlmoxVerModal(id);
+            return;
+        }
+        if (ae) {
+            ev.preventDefault();
+            const id = parseInt(ae.getAttribute('data-id') || '0', 10);
+            if (id > 0) {
+                apiFetch('almoxarifado_item.php?id=' + encodeURIComponent(String(id)), { method: 'GET' })
+                    .then((data) => openAlmoxFormModal(data.item || {}))
+                    .catch(() => {});
+            }
+            return;
+        }
+        if (ad) {
+            ev.preventDefault();
+            const id = parseInt(ad.getAttribute('data-id') || '0', 10);
+            if (id > 0) deleteAlmox(id);
+            return;
+        }
+        const evb = ev.target.closest('.btn-view-embarcacao');
+        const eeb = ev.target.closest('.btn-edit-embarcacao');
+        const enb = ev.target.closest('.btn-nova-os-embarcacao');
+        if (evb) {
+            ev.preventDefault();
+            const id = parseInt(evb.getAttribute('data-id') || '0', 10);
+            if (id > 0) openEmbarcacaoVerModal(id);
+            return;
+        }
+        if (eeb) {
+            ev.preventDefault();
+            const id = parseInt(eeb.getAttribute('data-id') || '0', 10);
+            if (id > 0) {
+                apiFetch('embarcacao.php?id=' + encodeURIComponent(String(id)), { method: 'GET' })
+                    .then((data) => openEmbarcacaoFormModal(data.item || {}))
+                    .catch(() => {});
+            }
+            return;
+        }
+        if (enb) {
+            ev.preventDefault();
+            const id = parseInt(enb.getAttribute('data-id') || '0', 10);
+            if (id > 0) openOrdemNovaModal(id);
+            return;
+        }
+    });
+
+    el('modalOrdemBody').addEventListener('click', (ev) => {
+        const b = ev.target.closest('.js-editar-os-aperta');
+        if (!b) return;
+        ev.preventDefault();
+        const oid = parseInt(b.getAttribute('data-ordem-id') || '0', 10);
+        if (oid > 0) {
+            if (modalOrdem) modalOrdem.hide();
+            openOrdemEditModal(oid);
         }
     });
 
@@ -1764,6 +2488,45 @@
     });
 
     el('formClienteSubmit').addEventListener('click', () => saveClienteForm());
+
+    el('modalUsuarioVerEditar').addEventListener('click', () => {
+        const id = lastUsuarioViewId;
+        modalUsuarioVer.hide();
+        if (id) {
+            apiFetch('usuario.php?id=' + encodeURIComponent(String(id)), { method: 'GET' })
+                .then((data) => openUsuarioFormModal(data.item || { id }))
+                .catch(() => {});
+        }
+    });
+    el('formUsuarioSubmit').addEventListener('click', () => saveUsuarioForm());
+
+    el('modalAlmoxVerEditar').addEventListener('click', () => {
+        const id = lastAlmoxViewId;
+        modalAlmoxVer.hide();
+        if (id) {
+            apiFetch('almoxarifado_item.php?id=' + encodeURIComponent(String(id)), { method: 'GET' })
+                .then((data) => openAlmoxFormModal(data.item || {}))
+                .catch(() => {});
+        }
+    });
+    el('formAlmoxSubmit').addEventListener('click', () => saveAlmoxForm());
+
+    el('modalEmbarcacaoVerEditar').addEventListener('click', () => {
+        const id = lastEmbarcacaoViewId;
+        modalEmbarcacaoVer.hide();
+        if (id) {
+            apiFetch('embarcacao.php?id=' + encodeURIComponent(String(id)), { method: 'GET' })
+                .then((data) => openEmbarcacaoFormModal(data.item || {}))
+                .catch(() => {});
+        }
+    });
+    el('formEmbarcacaoSubmit').addEventListener('click', () => saveEmbarcacaoForm());
+    el('formEmbTipo').addEventListener('change', () => syncEmbarcacaoSubtipoField());
+
+    el('formOsTipoProp').addEventListener('change', () => syncOsClienteWrapVisibility());
+    el('formOsNovaTipoProp').addEventListener('change', () => syncOsNovaClienteWrapVisibility());
+    el('formOsSubmit').addEventListener('click', () => saveOrdemEdit());
+    el('formOsNovaSubmit').addEventListener('click', () => saveOrdemNova());
 
     el('navLogout').addEventListener('click', async (ev) => {
         ev.preventDefault();

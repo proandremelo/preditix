@@ -6,6 +6,8 @@ namespace AppDesacoplado\Controllers;
 use AppDesacoplado\Auth\AuthSession;
 use AppDesacoplado\Http\ApiResponse;
 use AppDesacoplado\Repositories\OrdemServicoReadRepository;
+use AppDesacoplado\Repositories\OrdemServicoWriteRepository;
+use InvalidArgumentException;
 use Throwable;
 
 final class OrdemServicoApiController
@@ -48,8 +50,6 @@ final class OrdemServicoApiController
             ApiResponse::emit(400, ['error' => 'validation', 'message' => 'Parâmetro id inválido.']);
         }
 
-        require_once PREDITIX_ROOT . '/classes/OrdemServico.php';
-
         try {
             $repo = new OrdemServicoReadRepository();
             $row = $repo->buscarParaVisualizacao($id);
@@ -60,8 +60,7 @@ final class OrdemServicoApiController
                 ]);
             }
             $row = ApiResponse::stripOrdemPdf($row);
-            $os = new \OrdemServico();
-            $itens = $os->listarItens($id);
+            $itens = $repo->listarItens($id);
             ApiResponse::emit(200, ['item' => $row, 'itens' => $itens]);
         } catch (Throwable $e) {
             error_log('app_desacoplado/api/ordem_servico: ' . $e->getMessage());
@@ -69,6 +68,77 @@ final class OrdemServicoApiController
                 'error' => 'server_error',
                 'message' => 'Erro ao carregar ordem de serviço.',
             ]);
+        }
+    }
+
+    public static function create(): void
+    {
+        ApiResponse::requireMethod('POST');
+        AuthSession::requireLoginJson();
+
+        $raw = file_get_contents('php://input');
+        $data = json_decode($raw !== false && $raw !== '' ? $raw : '[]', true);
+        if (!is_array($data)) {
+            $data = [];
+        }
+
+        try {
+            $repo = new OrdemServicoWriteRepository();
+            $uid = (int) ($_SESSION['usuario_id'] ?? 0);
+            $id = $repo->inserirNovaOs($data, $uid);
+            $read = new OrdemServicoReadRepository();
+            $row = $read->buscarParaVisualizacao($id);
+            if ($row === null) {
+                ApiResponse::emit(500, ['error' => 'server_error', 'message' => 'OS criada mas não foi possível recarregar.']);
+            }
+            $row = ApiResponse::stripOrdemPdf($row);
+            ApiResponse::emit(201, ['ok' => true, 'id' => $id, 'item' => $row]);
+        } catch (InvalidArgumentException $e) {
+            ApiResponse::emit(400, ['error' => 'validation', 'message' => $e->getMessage()]);
+        } catch (Throwable $e) {
+            error_log('app_desacoplado/api/ordem_servico POST: ' . $e->getMessage());
+            ApiResponse::emit(422, ['error' => 'business', 'message' => $e->getMessage()]);
+        }
+    }
+
+    public static function update(): void
+    {
+        ApiResponse::requireMethod('PUT');
+        AuthSession::requireLoginJson();
+
+        $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+        if ($id < 1) {
+            ApiResponse::emit(400, ['error' => 'validation', 'message' => 'Parâmetro id inválido.']);
+        }
+
+        $raw = file_get_contents('php://input');
+        $data = json_decode($raw !== false && $raw !== '' ? $raw : '[]', true);
+        if (!is_array($data)) {
+            $data = [];
+        }
+
+        try {
+            $repo = new OrdemServicoWriteRepository();
+            $uid = (int) ($_SESSION['usuario_id'] ?? 0);
+            $repo->atualizarOsAberta($id, $data, $uid);
+            $read = new OrdemServicoReadRepository();
+            $row = $read->buscarParaVisualizacao($id);
+            if ($row === null) {
+                ApiResponse::emit(404, ['error' => 'not_found', 'message' => 'Ordem de serviço não encontrada.']);
+            }
+            $row = ApiResponse::stripOrdemPdf($row);
+            $itens = $read->listarItens($id);
+            ApiResponse::emit(200, ['ok' => true, 'item' => $row, 'itens' => $itens]);
+        } catch (InvalidArgumentException $e) {
+            $msg = $e->getMessage();
+            $code = str_contains($msg, 'não encontrada') ? 404 : 400;
+            ApiResponse::emit($code, [
+                'error' => $code === 404 ? 'not_found' : 'validation',
+                'message' => $msg,
+            ]);
+        } catch (Throwable $e) {
+            error_log('app_desacoplado/api/ordem_servico PUT: ' . $e->getMessage());
+            ApiResponse::emit(422, ['error' => 'business', 'message' => $e->getMessage()]);
         }
     }
 }

@@ -5,7 +5,7 @@ namespace AppDesacoplado\Controllers;
 
 use AppDesacoplado\Auth\AuthSession;
 use AppDesacoplado\Http\ApiResponse;
-use AppDesacoplado\Repositories\ClienteExecutorRepository;
+use AppDesacoplado\Repositories\ClienteRepository;
 use Throwable;
 
 final class ClienteApiController
@@ -34,11 +34,8 @@ final class ClienteApiController
             ApiResponse::emit(400, ['error' => 'validation', 'message' => 'Parâmetro id inválido.']);
         }
 
-        require_once PREDITIX_ROOT . '/classes/Cliente.php';
-
         try {
-            $c = new \Cliente();
-            $row = $c->buscarPorId($id);
+            $row = (new ClienteRepository())->buscarPorId($id);
             if ($row === null) {
                 ApiResponse::emit(404, [
                     'error' => 'not_found',
@@ -82,19 +79,16 @@ final class ClienteApiController
             'endereco' => self::optionalString($data, 'endereco'),
         ];
 
-        require_once PREDITIX_ROOT . '/classes/Cliente.php';
-
         try {
-            $repo = new ClienteExecutorRepository();
+            $repo = new ClienteRepository();
             $id = $repo->inserirRetornandoId($dados);
-            if ($id === false) {
+            if ($id < 1) {
                 ApiResponse::emit(500, [
                     'error' => 'server_error',
                     'message' => 'Não foi possível cadastrar o executor.',
                 ]);
             }
-            $c = new \Cliente();
-            $row = $c->buscarPorId($id);
+            $row = $repo->buscarPorId($id);
             ApiResponse::emit(201, [
                 'ok' => true,
                 'id' => $id,
@@ -141,12 +135,10 @@ final class ClienteApiController
             'endereco' => self::optionalString($data, 'endereco'),
         ];
 
-        require_once PREDITIX_ROOT . '/classes/Cliente.php';
-
         try {
-            $c = new \Cliente();
-            $c->atualizar($id, $dados);
-            $row = $c->buscarPorId($id);
+            $repo = new ClienteRepository();
+            $repo->atualizar($id, $dados);
+            $row = $repo->buscarPorId($id);
             ApiResponse::emit(200, ['ok' => true, 'item' => $row]);
         } catch (Throwable $e) {
             error_log('app_desacoplado/api/cliente PUT: ' . $e->getMessage());
