@@ -53,9 +53,11 @@ final class AuthSession
         if (self::isLoggedIn()) {
             return;
         }
+        \AppDesacoplado\Http\ApiResponse::discardOutputBuffers();
         if (!headers_sent()) {
             http_response_code(401);
             header('Content-Type: application/json; charset=utf-8');
+            header('X-Content-Type-Options: nosniff');
         }
         echo json_encode([
             'error' => 'unauthorized',
@@ -75,9 +77,11 @@ final class AuthSession
         if (self::isGestor()) {
             return;
         }
+        \AppDesacoplado\Http\ApiResponse::discardOutputBuffers();
         if (!headers_sent()) {
             http_response_code(403);
             header('Content-Type: application/json; charset=utf-8');
+            header('X-Content-Type-Options: nosniff');
         }
         echo json_encode([
             'error' => 'forbidden',

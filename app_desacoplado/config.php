@@ -15,6 +15,10 @@
  *
  * Desenvolvimento local: sem APP_DESACOPLADO_REMOTO; credenciais opcionais via
  * config.local.php (copie de config.local.php.example) ou variáveis de ambiente.
+ *
+ * Se o .htaccess SetEnv não entregar nada ao PHP, pode criar no SERVIDOR (não no Git) o
+ * ficheiro vazio `app_desacoplado/ambiente.producao` — força o mesmo que APP_DESACOPLADO_REMOTO=1
+ * (modo produção + credenciais só via ambiente, ver $readVar abaixo).
  */
 declare(strict_types=1);
 
@@ -67,6 +71,11 @@ $isRemoto = $envIsRemoto !== null
         ['1', 'true', 'yes', 'on'],
         true
     );
+
+$flagProducao = __DIR__ . '/ambiente.producao';
+if (!$isRemoto && is_file($flagProducao)) {
+    $isRemoto = true;
+}
 
 if (!defined('APP_DESACOPLADO_PRODUCTION')) {
     define('APP_DESACOPLADO_PRODUCTION', $isRemoto);

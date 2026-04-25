@@ -11,14 +11,23 @@ use Throwable;
  */
 final class ApiResponse
 {
+    public static function discardOutputBuffers(): void
+    {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+    }
+
     /**
      * @param array<string, mixed> $payload
      */
     public static function emit(int $status, array $payload): void
     {
+        self::discardOutputBuffers();
         if (!headers_sent()) {
             http_response_code($status);
             header('Content-Type: application/json; charset=utf-8');
+            header('X-Content-Type-Options: nosniff');
         }
         echo json_encode($payload, JSON_UNESCAPED_UNICODE);
         exit;

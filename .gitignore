@@ -1,2 +1,4 @@
 # credenciais locais (não commitar)
 app_desacoplado/config.local.php
+# sentinela “estou em produção” (só no servidor; força remoto)
+app_desacoplado/ambiente.producao
