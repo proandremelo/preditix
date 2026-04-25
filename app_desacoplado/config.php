@@ -10,6 +10,9 @@
  *   SetEnv APP_DESACOPLADO_DB_NAME "seuuser_preditix"
  * (Alternativa: chaves genéricas DB_HOST, DB_USER, DB_PASS, DB_NAME.)
  *
+ * Se o site abrir com https e estiver atrás de proxy (cabeçalho X-Forwarded-Proto), pode
+ * ser necessário: SetEnv APP_DESACOPLADO_TRUST_PROXY_HTTPS 1
+ *
  * Desenvolvimento local: sem APP_DESACOPLADO_REMOTO; credenciais opcionais via
  * config.local.php (copie de config.local.php.example) ou variáveis de ambiente.
  */
@@ -33,11 +36,34 @@ $loadLocalFile = static function (): array {
 
 $local = $loadLocalFile();
 
-$envIsRemoto = getenv('APP_DESACOPLADO_REMOTO');
-$isRemoto = $envIsRemoto !== false
+/**
+ * Em muitos Apache/cPanel, SetEnv do .htaccess entra em $_SERVER e NÃO em getenv()
+ * (comportamento de PHP/FCGI). Isto alinha com o SetEnv usado no HostGator.
+ */
+$readVar = static function (string $key): ?string {
+    $g = getenv($key);
+    if ($g !== false) {
+        return (string) $g;
+    }
+    if (array_key_exists($key, $_ENV)) {
+        return (string) $_ENV[$key];
+    }
+    if (isset($_SERVER[$key])) {
+        return (string) $_SERVER[$key];
+    }
+    $redirect = 'REDIRECT_' . $key;
+    if (isset($_SERVER[$redirect])) {
+        return (string) $_SERVER[$redirect];
+    }
+
+    return null;
+};
+
+$envIsRemoto = $readVar('APP_DESACOPLADO_REMOTO');
+$isRemoto = $envIsRemoto !== null
     && $envIsRemoto !== ''
     && in_array(
-        strtolower(trim((string) $envIsRemoto)),
+        strtolower(trim($envIsRemoto)),
         ['1', 'true', 'yes', 'on'],
         true
     );
@@ -46,23 +72,14 @@ if (!defined('APP_DESACOPLADO_PRODUCTION')) {
     define('APP_DESACOPLADO_PRODUCTION', $isRemoto);
 }
 
-$getFromEnv = static function (string $key): ?string {
-    $v = getenv($key);
-    if ($v === false) {
-        return null;
-    }
-
-    return $v;
-};
-
 /**
  * Ordem: preferência APP_DESACOPLADO_* e depois DB_* (comum em muitos hosts).
  *
  * @param list<string> $keys
  */
-$firstEnv = static function (array $keys) use ($getFromEnv): ?string {
+$firstEnv = static function (array $keys) use ($readVar): ?string {
     foreach ($keys as $k) {
-        $v = $getFromEnv($k);
+        $v = $readVar($k);
         if ($v !== null) {
             return $v;
         }
@@ -119,25 +136,44 @@ if (!defined('DB_NAME')) {
 }
 
 $rootAbove = dirname(__DIR__);
-$upload = $getFromEnv('APP_DESACOPLADO_UPLOAD_DIR') ?? $rootAbove . '/assets/uploads/';
+$upload = $readVar('APP_DESACOPLADO_UPLOAD_DIR') ?? $rootAbove . '/assets/uploads/';
 if (!defined('UPLOAD_DIR')) {
     define('UPLOAD_DIR', $upload !== '' ? $upload : $rootAbove . '/assets/uploads/');
 }
 
+/*
+ * Só tratar o pedido como HTTPS pelo próprio Apache ($HTTPS / porta 443).
+ * X-Forwarded-Proto/SSL às vezes vêm enganados em alojamento partilhado e, com “Secure=1”
+ * no cookie de sessão, o browser deixa de guardar o cookie em acesso http://
+ * (login responde 200 mas a sessão nunca fica, ou falha a seguir).
+ * Para passar a confiar nesses cabeçalhos, defina APP_DESACOPLADO_TRUST_PROXY_HTTPS=1 (ex.: .htaccess).
+ */
 $https = false;
 if (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off') {
     $https = true;
-} elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower((string) $_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https') {
+} elseif (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443) {
     $https = true;
-} elseif (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && (string) $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on') {
-    $https = true;
+}
+$trustProxy = $readVar('APP_DESACOPLADO_TRUST_PROXY_HTTPS');
+$trust = $trustProxy !== null && in_array(
+    strtolower(trim($trustProxy)),
+    ['1', 'true', 'yes', 'on'],
+    true
+);
+if ($trust) {
+    if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower((string) $_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https') {
+        $https = true;
+    }
+    if (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && (string) $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on') {
+        $https = true;
+    }
 }
 if (!defined('APP_DESACOPLADO_HTTPS')) {
     define('APP_DESACOPLADO_HTTPS', $https);
 }
 
 if (session_status() === PHP_SESSION_NONE) {
-    $sn = $getFromEnv('APP_DESACOPLADO_SESSION_NAME') ?? 'sess_preditix_app_desacoplado';
+    $sn = $readVar('APP_DESACOPLADO_SESSION_NAME') ?? 'sess_preditix_app_desacoplado';
     session_name($sn !== '' ? $sn : 'sess_preditix_app_desacoplado');
 
     $params = [
@@ -158,7 +194,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Produção: não mostrar detalhes ao browser; ficheiros a aceder por URL não devem listar erros
 error_reporting(E_ALL);
-$logFile = $getFromEnv('APP_DESACOPLADO_ERROR_LOG');
+$logFile = $readVar('APP_DESACOPLADO_ERROR_LOG');
 if ($isRemoto) {
     ini_set('display_errors', '0');
     ini_set('log_errors', '1');
@@ -170,4 +206,20 @@ if ($isRemoto) {
     ini_set('log_errors', '1');
 }
 
-unset($loadLocalFile, $local, $getFromEnv, $firstEnv, $failConfig, $dbHost, $dbUser, $dbName, $dbPass, $sn, $params, $https, $logFile, $envIsRemoto);
+unset(
+    $loadLocalFile,
+    $local,
+    $readVar,
+    $firstEnv,
+    $failConfig,
+    $dbHost,
+    $dbUser,
+    $dbName,
+    $dbPass,
+    $sn,
+    $params,
+    $https,
+    $logFile,
+    $envIsRemoto,
+    $trustProxy
+);
