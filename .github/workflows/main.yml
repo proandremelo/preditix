@@ -1,25 +1,21 @@
+name: CD - Deploy por ambiente
+
 on:
   push:
     branches:
+      - develop
       - main
-
-name: Deploy website on push
+      - "release/**"
+  workflow_dispatch:
 
 jobs:
-  web-deploy:
-    name: Deploy
+  deploy-desenv:
+    name: Deploy desenv
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-
-      - name: Listar conteúdo que será publicado
-        run: |
-          echo "Diretório atual:" && pwd
-          echo "Arquivos na raiz:" && ls -la
-          echo "Contagem (aprox.):" && find . -type f | head -50
-          echo "Total de arquivos:" && find . -type f | wc -l
 
       - name: Sync files via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
@@ -27,8 +23,39 @@ jobs:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: ./
+          server-dir: ${{ secrets.FTP_SERVER_DIR_DESENV }}
           log-level: verbose
-          # dry-run: true   # descomente só para teste: lista o que faria SEM enviar
-          # dangerous-clean-slate: true  # cuidado: apaga tudo em server-dir antes
-          # verbose: true  # mostra mais detalhes
+
+  deploy-homolog:
+    name: Deploy homolog
+    if: startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sync files via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR_HOMOL }}
+          log-level: verbose
+
+  deploy-prod:
+    name: Deploy prod
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sync files via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR_PROD }}
+          log-level: verbose
