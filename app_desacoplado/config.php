@@ -1,9 +1,17 @@
 <?php
 /**
- * Configuração do app desacoplado — não depende de includes/ nem da raiz Preditix.
+ * App desacoplado — configuração com segredos fora do repositório em produção.
  *
- * Variáveis de ambiente (opcional): APP_DESACOPLADO_DB_HOST, DB_USER, DB_PASS, DB_NAME,
- * APP_DESACOPLADO_SESSION_NAME, APP_DESACOPLADO_UPLOAD_DIR
+ * Produção (ex.: HostGator): definir no servidor, sem ficheiro no Git com passwords.
+ *   SetEnv APP_DESACOPLADO_REMOTO 1
+ *   SetEnv APP_DESACOPLADO_DB_HOST "localhost"
+ *   SetEnv APP_DESACOPLADO_DB_USER "seuuser_mysql"
+ *   SetEnv APP_DESACOPLADO_DB_PASS "sua_senha"
+ *   SetEnv APP_DESACOPLADO_DB_NAME "seuuser_preditix"
+ * (Alternativa: chaves genéricas DB_HOST, DB_USER, DB_PASS, DB_NAME.)
+ *
+ * Desenvolvimento local: sem APP_DESACOPLADO_REMOTO; credenciais opcionais via
+ * config.local.php (copie de config.local.php.example) ou variáveis de ambiente.
  */
 declare(strict_types=1);
 
@@ -12,39 +20,154 @@ if (defined('APP_DESACOPLADO_CONFIG_LOADED')) {
 }
 define('APP_DESACOPLADO_CONFIG_LOADED', true);
 
-$env = static function (string $key, ?string $default = null): ?string {
-    $v = getenv($key);
-    if ($v !== false && $v !== '') {
-        return $v;
+/** @return array{db_host?: string, db_user?: string, db_pass?: string, db_name?: string} */
+$loadLocalFile = static function (): array {
+    $path = __DIR__ . '/config.local.php';
+    if (!is_file($path)) {
+        return [];
     }
+    $c = require $path;
 
-    return $default;
+    return is_array($c) ? $c : [];
 };
 
+$local = $loadLocalFile();
+
+$envIsRemoto = getenv('APP_DESACOPLADO_REMOTO');
+$isRemoto = $envIsRemoto !== false
+    && $envIsRemoto !== ''
+    && in_array(
+        strtolower(trim((string) $envIsRemoto)),
+        ['1', 'true', 'yes', 'on'],
+        true
+    );
+
+if (!defined('APP_DESACOPLADO_PRODUCTION')) {
+    define('APP_DESACOPLADO_PRODUCTION', $isRemoto);
+}
+
+$getFromEnv = static function (string $key): ?string {
+    $v = getenv($key);
+    if ($v === false) {
+        return null;
+    }
+
+    return $v;
+};
+
+/**
+ * Ordem: preferência APP_DESACOPLADO_* e depois DB_* (comum em muitos hosts).
+ *
+ * @param list<string> $keys
+ */
+$firstEnv = static function (array $keys) use ($getFromEnv): ?string {
+    foreach ($keys as $k) {
+        $v = $getFromEnv($k);
+        if ($v !== null) {
+            return $v;
+        }
+    }
+
+    return null;
+};
+
+$failConfig = static function (string $msg): void {
+    error_log('app_desacoplado config: ' . $msg);
+    if (PHP_SAPI === 'cli') {
+        fwrite(STDERR, "Erro de configuração: {$msg}\n");
+        exit(1);
+    }
+    http_response_code(503);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'Serviço indisponível. Entre em contacto com o administrador.';
+    exit(1);
+};
+
+if ($isRemoto) {
+    $dbHost = $firstEnv(['APP_DESACOPLADO_DB_HOST', 'DB_HOST']);
+    $dbUser = $firstEnv(['APP_DESACOPLADO_DB_USER', 'DB_USER']);
+    $dbName = $firstEnv(['APP_DESACOPLADO_DB_NAME', 'DB_NAME']);
+    $dbPassRaw = $firstEnv(['APP_DESACOPLADO_DB_PASS', 'DB_PASS']);
+    $dbPass = $dbPassRaw !== null ? $dbPassRaw : '';
+
+    if ($dbHost === null || $dbHost === '' || $dbUser === null || $dbUser === '' || $dbName === null || $dbName === '') {
+        $failConfig('Em produção (APP_DESACOPLADO_REMOTO) é obrigatório definir host, utilizador e nome da base (variáveis de ambiente).');
+    }
+} else {
+    $dbHost = (string) ($local['db_host'] ?? $firstEnv(['DB_HOST', 'APP_DESACOPLADO_DB_HOST']) ?? 'localhost');
+    $dbUser = (string) ($local['db_user'] ?? $firstEnv(['DB_USER', 'APP_DESACOPLADO_DB_USER']) ?? 'root');
+    $dbName = (string) ($local['db_name'] ?? $firstEnv(['DB_NAME', 'APP_DESACOPLADO_DB_NAME']) ?? 'preditix');
+    if (array_key_exists('db_pass', $local)) {
+        $dbPass = (string) $local['db_pass'];
+    } else {
+        $p = $firstEnv(['DB_PASS', 'APP_DESACOPLADO_DB_PASS']);
+        $dbPass = $p !== null ? $p : 'root';
+    }
+}
+
 if (!defined('DB_HOST')) {
-    define('DB_HOST', $env('APP_DESACOPLADO_DB_HOST', $env('DB_HOST', 'localhost')) ?? 'localhost');
+    define('DB_HOST', $dbHost);
 }
 if (!defined('DB_USER')) {
-    define('DB_USER', $env('APP_DESACOPLADO_DB_USER', $env('DB_USER', 'root')) ?? 'root');
+    define('DB_USER', $dbUser);
 }
 if (!defined('DB_PASS')) {
-    define('DB_PASS', $env('APP_DESACOPLADO_DB_PASS', $env('DB_PASS', 'root')) ?? 'root');
+    define('DB_PASS', $dbPass);
 }
 if (!defined('DB_NAME')) {
-    define('DB_NAME', $env('APP_DESACOPLADO_DB_NAME', $env('DB_NAME', 'preditix')) ?? 'preditix');
+    define('DB_NAME', $dbName);
 }
 
 $rootAbove = dirname(__DIR__);
+$upload = $getFromEnv('APP_DESACOPLADO_UPLOAD_DIR') ?? $rootAbove . '/assets/uploads/';
 if (!defined('UPLOAD_DIR')) {
-    $upload = $env('APP_DESACOPLADO_UPLOAD_DIR', $rootAbove . '/assets/uploads/');
-    define('UPLOAD_DIR', $upload !== null && $upload !== '' ? $upload : $rootAbove . '/assets/uploads/');
+    define('UPLOAD_DIR', $upload !== '' ? $upload : $rootAbove . '/assets/uploads/');
+}
+
+$https = false;
+if (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off') {
+    $https = true;
+} elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower((string) $_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https') {
+    $https = true;
+} elseif (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && (string) $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on') {
+    $https = true;
+}
+if (!defined('APP_DESACOPLADO_HTTPS')) {
+    define('APP_DESACOPLADO_HTTPS', $https);
 }
 
 if (session_status() === PHP_SESSION_NONE) {
-    $sn = $env('APP_DESACOPLADO_SESSION_NAME', 'sess_preditix_app_desacoplado');
-    session_name($sn !== null && $sn !== '' ? $sn : 'sess_preditix_app_desacoplado');
+    $sn = $getFromEnv('APP_DESACOPLADO_SESSION_NAME') ?? 'sess_preditix_app_desacoplado';
+    session_name($sn !== '' ? $sn : 'sess_preditix_app_desacoplado');
+
+    $params = [
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => '',
+        'secure' => $https,
+        'httponly' => true,
+    ];
+    if (PHP_VERSION_ID >= 70300) {
+        $params['samesite'] = 'Lax';
+        session_set_cookie_params($params);
+    } else {
+        session_set_cookie_params(0, '/', $params['domain'], (bool) $params['secure'], (bool) $params['httponly']);
+    }
     session_start();
 }
 
+// Produção: não mostrar detalhes ao browser; ficheiros a aceder por URL não devem listar erros
 error_reporting(E_ALL);
-ini_set('display_errors', '1');
+$logFile = $getFromEnv('APP_DESACOPLADO_ERROR_LOG');
+if ($isRemoto) {
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+    if ($logFile !== null && $logFile !== '') {
+        ini_set('error_log', $logFile);
+    }
+} else {
+    ini_set('display_errors', '1');
+    ini_set('log_errors', '1');
+}
+
+unset($loadLocalFile, $local, $getFromEnv, $firstEnv, $failConfig, $dbHost, $dbUser, $dbName, $dbPass, $sn, $params, $https, $logFile, $envIsRemoto);
