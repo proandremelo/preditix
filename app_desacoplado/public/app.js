@@ -1,7 +1,42 @@
 (function () {
     'use strict';
 
-    const API_BASE = new URL('../api/', window.location.href).href;
+    /**
+     * Com path .../app_desacoplado/public (sem / final) new URL('../api/', location) fica
+     * errado: o último segmento "public" é tratado como ficheiro, e ../api/ pode aterrar
+     * fora de app_desacoplado. Forçar .../app_desacoplado/api/ quando detetamos a pasta public.
+     */
+    function resolveAppDesacopladoApiBase() {
+        const p = window.location.pathname;
+        const mark = '/app_desacoplado/public';
+        const i = p.indexOf(mark);
+        if (i !== -1) {
+            const after = p.slice(i + mark.length);
+            const a = after.toLowerCase();
+            const isPublicEntry =
+                after === '' || after === '/' || a === '/index' || a === '/index.html';
+            if (isPublicEntry) {
+                return window.location.origin + p.slice(0, i) + '/app_desacoplado/api/';
+            }
+        }
+        return new URL('../api/', window.location.href).href;
+    }
+
+    /**
+     * Irmã do app (ex.: ordens_servico) no mesmo "site" — /desenv/ordens_servico/ a par de /desenv/app_desacoplado/
+     */
+    function resolvePreditixModuleUrl(relativePath) {
+        const clean = String(relativePath).replace(/^\//, '');
+        const p = window.location.pathname;
+        const mark = '/app_desacoplado';
+        const i = p.indexOf(mark);
+        if (i !== -1) {
+            return window.location.origin + p.slice(0, i) + '/' + clean;
+        }
+        return new URL('../../' + clean, window.location.href).href;
+    }
+
+    const API_BASE = resolveAppDesacopladoApiBase();
 
     /** @type {string} */
     let currentRouteId = 'home';
@@ -63,10 +98,7 @@
 
     const el = (id) => document.getElementById(id);
 
-    const BUSCA_EQUIPAMENTOS_URL = new URL(
-        '../../ordens_servico/processamento/busca_equipamentos.php',
-        window.location.href
-    ).href;
+    const BUSCA_EQUIPAMENTOS_URL = resolvePreditixModuleUrl('ordens_servico/processamento/busca_equipamentos.php');
 
     const SPA_ROUTES = {
         home: { type: 'home', title: 'Painel inicial' },
@@ -2324,6 +2356,12 @@
             if (data.user) {
                 setLoggedInUI(data.user);
                 showAppOk('Login realizado.');
+            } else {
+                showError(
+                    'loginError',
+                    'Resposta do servidor inesperada. Confirme a URL (use …/app_desacoplado/public/ com barra ou index.html) ou abra a consola (F12) → Rede.',
+                    true
+                );
             }
         } catch (e) {
             const msg =
