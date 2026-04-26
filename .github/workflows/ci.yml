@@ -1,0 +1,48 @@
+name: CI - Validacoes
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+      - "release/**"
+  push:
+    branches:
+      - develop
+      - main
+
+jobs:
+  php-lint:
+    name: PHP lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+
+      - name: Validar sintaxe PHP
+        run: |
+          files=$(git ls-files '*.php')
+          if [ -z "$files" ]; then
+            echo "Nenhum arquivo PHP versionado para validar."
+            exit 0
+          fi
+          echo "$files" | xargs -n1 php -l
+
+  seguranca-basica:
+    name: Seguranca basica (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
