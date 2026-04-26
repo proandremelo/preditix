@@ -1,16 +1,14 @@
 # Ajuste os usernames para os logins reais do GitHub.
 
-* @proandremelo @proandremelo
+* @DieZauberflote @proandremelo
 
 # Frontend e UX
-/assets/ @proandremelo
-/app_desacoplado/public/ @proandremelo
+/app_desacoplado/public/ @DieZauberflote
 
 # Backend, banco e seguranca
 /app_desacoplado/api/ @proandremelo
 /app_desacoplado/src/ @proandremelo
-/includes/ @proandremelo
 
 # CI/CD e configuracoes de projeto
-/.github/ @proandremelo @proandremelo
+/.github/ @DieZauberflote @proandremelo
 /app_desacoplado/config.php @proandremelo
